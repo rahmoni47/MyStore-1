@@ -47,6 +47,9 @@ export function Products() {
   </div>;
 }
 
+const Pick = ({ label, opts, val, set }) => opts?.length > 0 && <fieldset className="pick"><legend>{label}</legend>
+  {opts.map(o => <button type="button" key={o} className={val === o ? 'on' : ''} aria-pressed={val === o} onClick={() => set(o)}>{o}</button>)}</fieldset>;
+
 function Detail({ p }) {
   const { add } = useCart();
   const [color, setColor] = useState(p.colors?.length === 1 ? p.colors[0] : '');
@@ -61,8 +64,6 @@ function Detail({ p }) {
     setErr(''); add({ productId: p.id, name: p.name, img: p.mainImg, price: p.price, color: color || undefined, size: size || undefined, quantity: qty });
     setDone(true); setTimeout(() => setDone(false), 2000);
   };
-  const Pick = ({ label, opts, val, set }) => opts?.length > 0 && <fieldset className="pick"><legend>{label}</legend>
-    {opts.map(o => <button type="button" key={o} className={val === o ? 'on' : ''} aria-pressed={val === o} onClick={() => set(o)}>{o}</button>)}</fieldset>;
   return <div className="container detail">
     <div><div className="frame big"><Img src={big} alt={p.name} /></div>
       {imgs.length > 1 && <div className="thumbs">{imgs.map(i => <button key={i} onClick={() => setBig(i)} aria-label="Show image"><Img src={i} alt="" /></button>)}</div>}</div>
@@ -78,9 +79,28 @@ function Detail({ p }) {
         <p aria-live="polite" className="ok">{done && <>Added. <Link to="/cart">Go to cart</Link></>}</p></>}
     </div></div>;
 }
+
 export function ProductPage() {
   const { id } = useParams(); const s = useAsync(sig => getProduct(id, sig), [id]);
   return s.data ? <Detail key={id} p={s.data} /> : <div className="container"><Status s={s} rows={2}>{() => null}</Status></div>;
+}
+
+function Field({ k, label, type = 'text', auto, value, onChange, error }) {
+  return (
+    <div className="field">
+      <label htmlFor={k}>{label}</label>
+      <input
+        id={k}
+        type={type}
+        autoComplete={auto}
+        value={value}
+        onChange={onChange}
+        aria-invalid={!!error}
+        aria-describedby={error ? k + 'e' : undefined}
+      />
+      {error && <p id={k + 'e'} className="err">{error}</p>}
+    </div>
+  );
 }
 
 export function Cart() {
@@ -114,9 +134,6 @@ export function Cart() {
       <dt>Products</dt><dd>{money(order.productsPrice)}</dd><dt>Delivery</dt><dd>{money(order.deliveryPrice)}</dd><dt>Total</dt><dd><b>{money(order.totalPrice)}</b></dd></dl>
     <Link className="btn" to="/products">Keep shopping</Link></div>;
   if (!items.length) return <div className="container narrow"><h1 className="pg">Your cart</h1><p className="note">Your cart is empty.</p><Link className="btn" to="/products">Browse products</Link></div>;
-  const Field = ({ k, label, type = 'text', auto }) => <div className="field"><label htmlFor={k}>{label}</label>
-    <input id={k} type={type} autoComplete={auto} value={f[k]} onChange={set(k)} aria-invalid={!!errs[k]} aria-describedby={errs[k] ? k + 'e' : undefined} />
-    {errs[k] && <p id={k + 'e'} className="err">{errs[k]}</p>}</div>;
   return <div className="container cart"><div><h1 className="pg">Your cart</h1>
     <ul className="lines">{items.map(i => {
       const k = keyOf(i); return <li key={k}>
@@ -127,8 +144,10 @@ export function Cart() {
         <b>{money(i.price * i.quantity)}</b></li>;
     })}</ul></div>
     <form className="checkout" onSubmit={submit} noValidate><h2>Delivery details</h2>
-      <Field k="customerFirstName" label="First name" auto="given-name" /><Field k="customerLastName" label="Last name" auto="family-name" />
-      <Field k="customerPhone" label="Phone number" type="tel" auto="tel" /><Field k="shippingAddress" label="Delivery address" auto="street-address" />
+      <Field k="customerFirstName" label="First name" auto="given-name" value={f.customerFirstName} onChange={set('customerFirstName')} error={errs.customerFirstName} />
+      <Field k="customerLastName" label="Last name" auto="family-name" value={f.customerLastName} onChange={set('customerLastName')} error={errs.customerLastName} />
+      <Field k="customerPhone" label="Phone number" type="tel" auto="tel" value={f.customerPhone} onChange={set('customerPhone')} error={errs.customerPhone} />
+      <Field k="shippingAddress" label="Delivery address" auto="street-address" value={f.shippingAddress} onChange={set('shippingAddress')} error={errs.shippingAddress} />
       <div className="field"><label htmlFor="state">State</label>
         <select id="state" value={f.state} onChange={set('state')} aria-invalid={!!errs.state} disabled={!states.data}>
           <option value="">{states.error ? 'Could not load states' : 'Select a state'}</option>
