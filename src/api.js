@@ -1,5 +1,5 @@
 import {useEffect,useState} from 'react';
-const BASE=(import.meta.env.VITE_API_BASE_URL||'').replace(/\/$/,'');
+const BASE=(import.meta.env.VITE_API_BASE_URL?.trim()||'https://store-1-r9p7.onrender.com').replace(/\/$/,'');
 export const CUR=import.meta.env.VITE_CURRENCY||'';
 export const STORE=import.meta.env.VITE_STORE_NAME||'Store';
 export const money=n=>`${Number(n).toLocaleString(undefined,{maximumFractionDigits:2})}${CUR?' '+CUR:''}`;
