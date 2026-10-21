@@ -1,6 +1,10 @@
 {
   "rewrites": [
     {
+      "source": "/api/:path*",
+      "destination": "https://store-1-r9p7.onrender.com/api/:path*"
+    },
+    {
       "source": "/(.*)",
       "destination": "/"
     }
