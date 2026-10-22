@@ -106,9 +106,17 @@ function Field({ k, label, type = 'text', auto, value, onChange, error }) {
 export function Cart() {
   const { items, setQty, remove, clear, subtotal, keyOf } = useCart();
   const states = useAsync(s => getStates(s), []);
+  const [deliveryType, setDeliveryType] = useState('home');
   const [f, setF] = useState({ customerFirstName: '', customerLastName: '', customerPhone: '', shippingAddress: '', state: '' });
   const [errs, setErrs] = useState({}); const [busy, setBusy] = useState(false); const [fail, setFail] = useState(''); const [order, setOrder] = useState(null);
   const set = k => e => setF(x => ({ ...x, [k]: e.target.value }));
+
+  const selectedState = (states.data || []).find(s => String(s.id) === String(f.state));
+  const deliveryPrice = selectedState
+    ? Number(deliveryType === 'home' ? (selectedState.deliveryToHome ?? selectedState.price ?? 0) : (selectedState.price ?? 0))
+    : 0;
+  const totalPrice = subtotal + deliveryPrice;
+
   const validate = () => {
     const e = {};
     if (!f.customerFirstName.trim()) e.customerFirstName = 'Enter your first name.';
@@ -121,8 +129,13 @@ export function Cart() {
     ev.preventDefault(); if (busy) return; const e = validate(); setErrs(e); if (Object.keys(e).length) return;
     setBusy(true); setFail('');
     try {
+      const fullAddress = f.shippingAddress.trim() + (deliveryType === 'bureau' ? ' (Bureau / المكتب)' : ' (Domicile / المنزل)');
       const r = await createOrder({
-        ...f, state: Number(f.state),
+        customerFirstName: f.customerFirstName.trim(),
+        customerLastName: f.customerLastName.trim(),
+        customerPhone: f.customerPhone.trim(),
+        shippingAddress: fullAddress,
+        state: Number(f.state),
         orderItems: items.map(i => ({ productId: i.productId, color: i.color, size: i.size, quantity: i.quantity, price: i.price }))
       });
       setOrder(r); clear();
@@ -147,13 +160,58 @@ export function Cart() {
       <Field k="customerFirstName" label="First name" auto="given-name" value={f.customerFirstName} onChange={set('customerFirstName')} error={errs.customerFirstName} />
       <Field k="customerLastName" label="Last name" auto="family-name" value={f.customerLastName} onChange={set('customerLastName')} error={errs.customerLastName} />
       <Field k="customerPhone" label="Phone number" type="tel" auto="tel" value={f.customerPhone} onChange={set('customerPhone')} error={errs.customerPhone} />
-      <Field k="shippingAddress" label="Delivery address" auto="street-address" value={f.shippingAddress} onChange={set('shippingAddress')} error={errs.shippingAddress} />
-      <div className="field"><label htmlFor="state">State</label>
+      <div className="field"><label htmlFor="state">State (Wilaya)</label>
         <select id="state" value={f.state} onChange={set('state')} aria-invalid={!!errs.state} disabled={!states.data}>
           <option value="">{states.error ? 'Could not load states' : 'Select a state'}</option>
           {(states.data || []).map(s => <option key={s.id} value={s.id}>{s.name}</option>)}</select>
         {states.error && <button type="button" className="link" onClick={states.retry}>Retry</button>}{errs.state && <p className="err">{errs.state}</p>}</div>
-      <p className="sub"><span>Subtotal</span><b>{money(subtotal)}</b></p><p className="muted">Delivery is calculated by the store when you place the order.</p>
+      <div className="field">
+        <label>Delivery method</label>
+        <div className="radio-group" role="radiogroup" aria-label="Delivery method">
+          <label className={`radio-card ${deliveryType === 'home' ? 'active' : ''}`}>
+            <input
+              type="radio"
+              name="deliveryType"
+              value="home"
+              checked={deliveryType === 'home'}
+              onChange={() => setDeliveryType('home')}
+            />
+            <div className="radio-content">
+              <span className="radio-title">Delivery to house (المنزل)</span>
+              <span className="radio-price">
+                {selectedState ? money(selectedState.deliveryToHome ?? selectedState.price ?? 0) : '—'}
+              </span>
+            </div>
+          </label>
+          <label className={`radio-card ${deliveryType === 'bureau' ? 'active' : ''}`}>
+            <input
+              type="radio"
+              name="deliveryType"
+              value="bureau"
+              checked={deliveryType === 'bureau'}
+              onChange={() => setDeliveryType('bureau')}
+            />
+            <div className="radio-content">
+              <span className="radio-title">Delivery to bureau (المكتب)</span>
+              <span className="radio-price">
+                {selectedState ? money(selectedState.price ?? 0) : '—'}
+              </span>
+            </div>
+          </label>
+        </div>
+      </div>
+      <Field k="shippingAddress" label={deliveryType === 'bureau' ? 'Delivery address / Stop desk notes' : 'Delivery address'} auto="street-address" value={f.shippingAddress} onChange={set('shippingAddress')} error={errs.shippingAddress} />
+      <div className="summary-block">
+        <p className="sub"><span>Subtotal</span><b>{money(subtotal)}</b></p>
+        <p className="sub delivery-line">
+          <span>Delivery ({deliveryType === 'bureau' ? 'Bureau' : 'House'})</span>
+          <b>{selectedState ? money(deliveryPrice) : <span className="muted">Select state</span>}</b>
+        </p>
+        <p className="sub total-line">
+          <span>Total</span>
+          <b>{money(totalPrice)}</b>
+        </p>
+      </div>
       {fail && <p role="alert" className="err">{fail}</p>}
       <button className="btn wide" disabled={busy}>{busy ? 'Placing order…' : 'Place order'}</button></form></div>;
 }
